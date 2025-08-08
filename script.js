@@ -121,14 +121,12 @@ function initializeIndexPage() {
     }
 }
 
-// Redirect Page Logic - COMPLETELY CHANGED
+// Redirect Page Logic - FIXED TO REQUIRE LOOTLABS
 function initializeRedirectPage() {
     const eventBtn = document.getElementById('eventButton');
     
-    // Auto-check if user came from LootLabs
-    setTimeout(() => {
-        checkLootLabsCompletion();
-    }, 1000);
+    // IMMEDIATELY check if user came from LootLabs
+    checkLootLabsCompletion();
     
     if (eventBtn) {
         eventBtn.addEventListener('click', function() {
@@ -149,30 +147,50 @@ function checkLootLabsCompletion() {
     const referrer = document.referrer;
     const sessionData = localStorage.getItem('eventSession');
     
-    // Check if they have a valid session first
+    console.log('🔍 Checking verification...');
+    console.log('📍 Referrer:', referrer);
+    console.log('📁 Session:', sessionData);
+    
+    // FIRST: Check if they have a valid session
     if (!sessionData) {
+        console.log('❌ No session found - redirecting to bypass');
         redirectToBypass('No verification session found');
         return;
     }
     
-    // Check if they came from LootLabs/LootDest
-    if (referrer && (referrer.includes('lootdest.org') || referrer.includes('lootlabs.net'))) {
-        // They completed the verification!
-        showVerificationSuccess();
-    } else {
-        // They have a session but didn't come from LootLabs
-        // Check if they already completed verification
-        try {
-            const session = JSON.parse(sessionData);
-            if (session.validated && Date.now() - session.validatedAt < SECURITY_CONFIG.sessionTimeout) {
-                showVerificationSuccess();
-            } else {
-                showWaitingForVerification();
-            }
-        } catch (e) {
-            redirectToBypass('Invalid session data');
-        }
+    let session;
+    try {
+        session = JSON.parse(sessionData);
+    } catch (e) {
+        console.log('❌ Invalid session data - redirecting to bypass');
+        redirectToBypass('Invalid session data');
+        return;
     }
+    
+    // SECOND: Check if they already completed verification recently
+    if (session.validated && Date.now() - session.validatedAt < SECURITY_CONFIG.sessionTimeout) {
+        console.log('✅ Valid existing session found');
+        showVerificationSuccess();
+        return;
+    }
+    
+    // THIRD: Check if they came from LootLabs/LootDest
+    if (referrer && (referrer.includes('lootdest.org') || referrer.includes('lootlabs.net'))) {
+        console.log('✅ Came from LootLabs - verification complete!');
+        showVerificationSuccess();
+        return;
+    }
+    
+    // FOURTH: If they have session but no LootLabs referrer, show waiting
+    if (session && !session.validated) {
+        console.log('⏳ Valid session but no LootLabs completion detected');
+        showWaitingForVerification();
+        return;
+    }
+    
+    // FALLBACK: Send to bypass
+    console.log('❌ No valid verification path found');
+    redirectToBypass('Verification requirements not met');
 }
 
 function showWaitingForVerification() {
@@ -182,17 +200,27 @@ function showWaitingForVerification() {
     const tokenSection = document.getElementById('tokenInput');
     const successSection = document.getElementById('successSection');
     const errorSection = document.getElementById('errorSection');
+    const verificationMessage = document.getElementById('verificationMessage');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
     
-    if (title) title.textContent = 'Waiting for Verification...';
+    if (title) title.textContent = 'Waiting for LootLabs Completion...';
     if (spinner) spinner.classList.remove('hidden');
-    if (statusText) statusText.textContent = 'Complete the verification in the other tab, then return here.';
-    if (tokenSection) tokenSection.classList.add('hidden'); // Hide token input
+    if (statusText) statusText.textContent = 'Waiting for verification';
+    if (tokenSection) tokenSection.classList.remove('hidden');
     if (successSection) successSection.classList.add('hidden');
     if (errorSection) errorSection.classList.add('hidden');
     
-    // Check every 3 seconds if they completed verification
+    if (verificationMessage) {
+        verificationMessage.textContent = 'Complete the LootLabs challenge in the other tab, then return here. This page will automatically detect when you\'ve finished.';
+    }
+    
+    if (step2) step2.innerHTML = '⏳ Waiting for LootLabs completion...';
+    if (step3) step3.innerHTML = '⏳ Awaiting verification...';
+    
+    // Check every 5 seconds if they completed verification
     let checkCount = 0;
-    const maxChecks = 60; // Check for 3 minutes max
+    const maxChecks = 36; // Check for 3 minutes max (36 * 5 seconds)
     
     const checkInterval = setInterval(() => {
         checkCount++;
@@ -200,17 +228,15 @@ function showWaitingForVerification() {
         // If they've been waiting too long, send to bypass
         if (checkCount >= maxChecks) {
             clearInterval(checkInterval);
-            redirectToBypass('Verification timeout - please try again');
+            console.log('⏰ Verification timeout - sending to bypass');
+            redirectToBypass('Verification timeout - please complete LootLabs and try again');
             return;
         }
         
         // Check if page was refreshed and they now have the right referrer
-        const currentReferrer = document.referrer;
-        if (currentReferrer && (currentReferrer.includes('lootdest.org') || currentReferrer.includes('lootlabs.net'))) {
-            clearInterval(checkInterval);
-            showVerificationSuccess();
-        }
-    }, 3000);
+        // OR if they completed it in another way
+        location.reload();
+    }, 5000);
 }
 
 function showVerificationSuccess() {
@@ -248,6 +274,8 @@ function showVerificationSuccess() {
     if (successSection) {
         successSection.style.animation = 'successSlide 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
     }
+    
+    console.log('✅ Verification success displayed');
 }
 
 // Bypass Page Logic
@@ -293,7 +321,7 @@ function updateSessionInfo() {
     const userLoginEl = document.getElementById('userLogin');
     
     if (timestampEl) {
-        timestampEl.textContent = '2025-08-08 11:58:26 UTC';
+        timestampEl.textContent = '2025-08-08 12:50:47 UTC';
     }
     
     if (userAgentEl) {
@@ -329,7 +357,7 @@ function animateViolations() {
 
 // Update timestamps throughout the site
 function updateTimestamps() {
-    const utcString = '2025-08-08 11:58:26 UTC';
+    const utcString = '2025-08-08 12:50:47 UTC';
     
     const timestampElements = document.querySelectorAll('[id*="timestamp"], .timestamp');
     timestampElements.forEach(el => {
