@@ -1,6 +1,6 @@
 // Security Configuration
 const SECURITY_CONFIG = {
-    lootlabsUrl: "https://lootdest.org/s?UrSxQK6R",
+    lootlabsUrl: "https://loot-link.com/s?W3o6BGUH",
     robloxEventUrl: "https://www.roblox.com/games/123456789/Event-Game",
     discordUrl: "https://discord.gg/dyGvnnymbHj",
     sessionTimeout: 86400000 // 24 hours
